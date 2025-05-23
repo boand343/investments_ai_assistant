@@ -1,0 +1,7 @@
+/jupyter_lab/.ipynb_checkpoints/
+/databases/db_data/
+__pycache__/
+databases/models/__pycache__/
+utils/__pycache__/
+.env
+.idea/

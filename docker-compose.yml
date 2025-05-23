@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: init_user
+      POSTGRES_PASSWORD: init_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./databases/db_data/postgres:/var/lib/postgresql/data
+    networks:
+      - bond_network
+  mongo:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./databases/db_data/mongodb:/data/db
+  jupyter_lab:
+    image: quay.io/jupyter/base-notebook
+    container_name: jupyter_lab
+    ports:
+      - "10000:8888"
+    volumes:
+      - ./jupyter_lab:/home/jovyan/work
+    networks:
+      - bond_network
+
+networks:
+  bond_network:
+    name:
+      bond_network
+    driver:
+      bridge
+    external: true
