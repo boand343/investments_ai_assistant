@@ -433,6 +433,63 @@ class FutureTable(Base):
     dlong_client = Column(Float)  # Конвертируется из Quotation
     dshort_client = Column(Float)  # Конвертируется из Quotation
 
+class BondCouponTable(Base):
+    __tablename__ = 'bond_coupon'
+    __table_args__ = (
+        PrimaryKeyConstraint('response_time', 'figi', 'coupon_number', name='pk_bond_coupon_response_time_figi_coupon_number'),
+        {'schema': 'raw'}
+    )
+
+    # Основные идентификаторы
+    response_time = Column(DateTime)
+
+    figi = Column(String)
+    coupon_date = Column(DateTime)
+    coupon_number = Column(Integer)
+    fix_date = Column(DateTime)
+    pay_one_bond_currency = Column(String)
+    pay_one_bond_value = Column(Float)
+    coupon_type = Column(String)
+    coupon_start_date = Column(DateTime)
+    coupon_end_date = Column(DateTime)
+    coupon_period = Column(Integer)
+
+class BondEventTable(Base):
+    __tablename__ = 'bond_events'
+    __table_args__ = (
+        {'schema': 'raw'}
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Основные идентификаторы
+    response_time = Column(DateTime)
+
+    instrument_id = Column(String)
+    event_number = Column(Integer)
+    event_date = Column(DateTime)
+    event_type = Column(String)
+    event_total_vol = Column(Float)  # Для Quotation может потребоваться специальный тип
+    fix_date = Column(DateTime)
+    rate_date = Column(DateTime)
+    default_date = Column(DateTime)
+    real_pay_date = Column(DateTime)
+    pay_date = Column(DateTime)
+    pay_one_bond_currency = Column(String)  # Для MoneyValue может потребоваться специальный тип
+    pay_one_bond_value = Column(Float)
+    money_flow_val_currency = Column(String)  # Для MoneyValue может потребоваться специальный тип
+    money_flow_val_value = Column(Float)
+    execution = Column(String)
+    operation_type = Column(String)
+    value = Column(Float)  # Для Quotation может потребоваться специальный тип
+    note = Column(String)
+    convert_to_fin_tool_id = Column(String)
+    coupon_start_date = Column(DateTime)
+    coupon_end_date = Column(DateTime)
+    coupon_period = Column(Integer)
+    coupon_interest_rate = Column(Float)  # Для Quotation может потребоваться специальный тип
+
+
 tinkoffdb_manager = DatabaseManager('tinkoff_db')
 
 

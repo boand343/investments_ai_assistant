@@ -2,10 +2,11 @@ from datetime import datetime, UTC
 import os
 
 from tinkoff.invest import Client, CandleInterval
+from tinkoff.invest.schemas import EventType, GetBondEventsRequest
 from typing import Optional, List, Dict, Union
 from utils.converter import SimpleTypeMapper
 from databases.models.tinkoff_db import DatabaseManager, tinkoffdb_manager, Base, HistoricCandleTable, BondTable, ShareTable, EtfTable, \
-                                        CurrencyTable, FutureTable
+                                        CurrencyTable, FutureTable, BondCouponTable, BondEventTable
 from dotenv import load_dotenv
 import logging
 
@@ -35,13 +36,13 @@ class TinkoffDataLoader:
 
         try:
             for data in data_iter:
-                historic_candle_table = SimpleTypeMapper.convert(data, cls.table)
+                table_row = SimpleTypeMapper.convert(data, cls.table)
 
                 if additional_fields:
                     for field, value in additional_fields.items():
-                        setattr(historic_candle_table, field, value)
+                        setattr(table_row, field, value)
 
-                session.add(historic_candle_table)
+                session.add(table_row)
                 count += 1
 
             session.commit()
@@ -231,6 +232,60 @@ def __reload_historic_candle(from_date: datetime, to_date: datetime, figi: str, 
         session.commit()
     HistoricCandleLoader.load(figi, interval, from_date, to_date)
 
+class GetBondCouponsLoader(TinkoffDataLoader):
+    db_manager = tinkoffdb_manager
+    table = BondCouponTable
+
+    @classmethod
+    def load(cls, figi: str, from_date: datetime, to_date: datetime):
+        with cls._getClient() as client:
+            instruments_service = client.instruments.get_bond_coupons(figi=figi, from_=from_date, to=to_date)
+
+        response_time = datetime.now(UTC)
+        # Конвертируем и сохраняем инструменты
+        count = cls._save(instruments_service.events, additional_fields={'response_time': response_time})
+        logger.info(f"Saved {count}")
+        return count
+
+class GetBondEventsLoader(TinkoffDataLoader):
+    db_manager = tinkoffdb_manager
+    table = BondEventTable
+
+    @classmethod
+    def load_by_figi(cls, figi: str, from_date: datetime, to_date: datetime):
+        event = []
+        with cls._getClient() as client:
+            for event_type in ['EVENT_TYPE_UNSPECIFIED', 'EVENT_TYPE_CPN', 'EVENT_TYPE_CALL']:
+            # for event_type in ['EVENT_TYPE_UNSPECIFIED', 'EVENT_TYPE_CPN', 'EVENT_TYPE_CALL',
+            #              'EVENT_TYPE_MTY', 'EVENT_TYPE_CONV']:
+                get_bond_request_request = GetBondEventsRequest(from_=from_date, to=to_date, instrument_id=figi,
+                                                                type=EventType.__getitem__(event_type))
+                event += client.instruments.get_bond_events(get_bond_request_request).events
+
+        response_time = datetime.now(UTC)
+        # Конвертируем и сохраняем инструменты
+        count = cls._save(event, additional_fields={'response_time': response_time})
+        logger.info(f"Saved {count}")
+        return count
+
+    @classmethod
+    def load(cls, from_date: datetime, to_date: datetime):
+        event = []
+        with cls._getClient() as client:
+            for bond in client.instruments.bonds().instruments:
+                for event_type in ['EVENT_TYPE_UNSPECIFIED', 'EVENT_TYPE_CPN', 'EVENT_TYPE_CALL']:
+                    # for event_type in ['EVENT_TYPE_UNSPECIFIED', 'EVENT_TYPE_CPN', 'EVENT_TYPE_CALL',
+                    #              'EVENT_TYPE_MTY', 'EVENT_TYPE_CONV']:
+                    get_bond_request_request = GetBondEventsRequest(from_=from_date, to=to_date, instrument_id=bond.figi,
+                                                                    type=EventType.__getitem__(event_type))
+                    event += client.instruments.get_bond_events(get_bond_request_request).events
+
+        response_time = datetime.now(UTC)
+        # Конвертируем и сохраняем инструменты
+        count = cls._save(event, additional_fields={'response_time': response_time})
+        logger.info(f"Saved {count}")
+        return count
+
 def __test_load():
     load_dotenv()
     from_ = datetime.strptime('2023/01/07', '%Y/%m/%d')
@@ -243,6 +298,9 @@ def __test_load():
     EtfLoader.load()
     CurrencyLoader.load()
     FutureLoader.load()
-
+    bond_coupon_from, bond_coupon_to = datetime.strptime('1971/01/01', '%Y/%m/%d'), datetime.strptime('3000/01/01', '%Y/%m/%d')
+    GetBondCouponsLoader.load(figi='BBG00XH4W3N3',from_date=bond_coupon_from, to_date=bond_coupon_to)
+    GetBondEventsLoader.load_by_figi(figi='BBG00XH4W3N3', from_date=bond_coupon_from, to_date=bond_coupon_to)
+    GetBondEventsLoader.load(from_date=bond_coupon_from, to_date=bond_coupon_to)
 if __name__ == '__main__':
     __test_load()
